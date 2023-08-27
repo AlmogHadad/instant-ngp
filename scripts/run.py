@@ -11,7 +11,7 @@
 import argparse
 import os
 import commentjson as json
-
+import json
 import numpy as np
 
 import shutil
@@ -180,6 +180,24 @@ if __name__ == "__main__":
 
 	tqdm_last_update = 0
 	if n_steps > 0:
+		width = 720
+		height = 1280
+		spp = 8
+
+		with open("new_frames.json", 'r') as file:
+			json_data = file.read()
+		data = json.loads(json_data)
+
+		testbed.fov_axis = 0
+		testbed.fov = data["camera_angle_x"] * 180 / np.pi
+		print("new")
+		for idx, frame in enumerate(data["frames"]):
+			transform_matrix = np.array(frame["transform_matrix"])
+			testbed.set_nerf_camera_matrix(np.matrix(transform_matrix)[:-1, :])
+			image = testbed.render(width, height, spp, True)
+			write_image(f"ztest{idx + 1}" + ".png", image)
+
+		print("saved image")
 		with tqdm(desc="Training", total=n_steps, unit="steps") as t:
 			while testbed.frame():
 				if testbed.want_repl():
@@ -206,6 +224,17 @@ if __name__ == "__main__":
 	if args.save_snapshot:
 		os.makedirs(os.path.dirname(args.save_snapshot), exist_ok=True)
 		testbed.save_snapshot(args.save_snapshot, False)
+
+    #transform_matrix =  [[-0.636768495183989, -0.08639378691728493, 0.7661997109177159, 3.106546719399244], [0.003996850835461768,0.9933198103435201,0.11532466973799375,0.4775994646017187],[-0.7710446864776961,0.07649750236136492,-0.6321694577894695,-2.987756207543778],[0.0,0.0,0.0,1.0]]
+	# f = ref_transforms["frames"][int(0)]
+	# transform_matrix = f.get("transform_matrix", f["transform_matrix_start"])
+	# testbed.set_nerf_camera_matrix(np.matrix(transform_matrix)[:-1, :])
+	# width = 1920
+	# height = 1080
+	# spp = 8
+	# image = testbed.render(width, height, spp, True)
+	# write_image("test" + ".png", image)
+	# print("saved image")
 
 	if args.test_transforms:
 		print("Evaluating test transforms from ", args.test_transforms)
@@ -294,6 +323,7 @@ if __name__ == "__main__":
 			os.makedirs(os.path.dirname(outname), exist_ok=True)
 			write_image(outname, image)
 	elif args.screenshot_dir:
+
 		outname = os.path.join(args.screenshot_dir, args.scene + "_" + network_stem)
 		print(f"Rendering {outname}.png")
 		image = testbed.render(args.width or 1920, args.height or 1080, args.screenshot_spp, True)
